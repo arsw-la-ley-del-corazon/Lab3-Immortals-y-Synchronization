@@ -5,7 +5,7 @@ import java.util.concurrent.atomic.AtomicLong;
 public final class Producer implements Runnable {
   private final AtomicLong counter;
   private final long delayMs;
-  private final Object queue; // BusySpinQueue<?> or BoundedBuffer<?>
+  private final Object queue; // BusySpinQueue<?> or BoundedBuffer<?> explicado en el doc
   private volatile boolean running = true;
 
   public Producer(Object queue, AtomicLong counter, long delayMs) {

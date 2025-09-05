@@ -9,6 +9,7 @@ public final class PCApp {
   private PCApp() {
   }
 
+/* 
   public static void main(String[] args) throws Exception {
     String mode = System.getProperty("mode", "monitor"); // monitor|spin
     int producers = Integer.getInteger("producers", 1);
@@ -56,5 +57,62 @@ public final class PCApp {
         queue instanceof BusySpinQueue<?> sp ? sp.size() : ((BoundedBuffer<?>) queue).size());
 
     System.out.println("TIP: Compare CPU with VisualVM: spin (busy-wait) vs monitor (wait/notify).");
+  }
+}
+*/
+
+//--------- PUNTO 3-------------
+public static void main(String[] args) throws Exception {
+  // productor rápido, el consumidor lento y buffer pequeño
+  String mode = System.getProperty("mode", "monitor");
+  int producers = Integer.getInteger("producers", 1);
+  int consumers = Integer.getInteger("consumers", 1);
+  int capacity = Integer.getInteger("capacity", 5);    //5 (stock pequeño)
+  long prodDelay = Long.getLong("prodDelayMs", 10L);   //productor rápido (10ms)
+  long consDelay = Long.getLong("consDelayMs", 100L);  //consumidor lento (100ms)
+  int duration = Integer.getInteger("durationSec", 20);
+
+  System.out.printf(
+      "PCApp mode=%s producers=%d consumers=%d capacity=%d prodDelay=%dms consDelay=%dms duration=%ds%n",
+      mode, producers, consumers, capacity, prodDelay, consDelay, duration);
+
+  Object queue;
+  if ("spin".equalsIgnoreCase(mode)) {
+    queue = new BusySpinQueue<Long>(capacity);
+  } else {
+    queue = new BoundedBuffer<Long>(capacity);
+  }
+
+  var exec = Executors.newVirtualThreadPerTaskExecutor();
+  List<Producer> prodList = new ArrayList<>();
+  List<Consumer> consList = new ArrayList<>();
+  AtomicLong produced = new AtomicLong();
+  AtomicLong consumed = new AtomicLong();
+
+  // Crear productores
+  for (int i = 0; i < producers; i++) {
+    var p = new Producer(queue, produced, prodDelay);
+    prodList.add(p);
+    exec.submit(p);
+  }
+
+  // Crear consumidore
+  for (int i = 0; i < consumers; i++) {
+    var c = new Consumer(queue, consumed, consDelay);
+    consList.add(c);
+    exec.submit(c);
+  }
+
+  Thread.sleep(duration * 1000L);
+
+  prodList.forEach(Producer::stop);
+  consList.forEach(Consumer::stop);
+  exec.close();
+
+  System.out.printf("Produced=%d Consumed=%d QueueSize=%d%n",
+      produced.get(), consumed.get(),
+      queue instanceof BusySpinQueue<?> sp ? sp.size() : ((BoundedBuffer<?>) queue).size());
+
+  System.out.println("TIP: Compare CPU with VisualVM: spin (busy-wait) vs monitor (wait/notify).");
   }
 }
