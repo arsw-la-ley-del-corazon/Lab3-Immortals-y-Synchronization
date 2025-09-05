@@ -1,11 +1,14 @@
 package edu.eci.arsw.demos;
 
-import edu.eci.arsw.core.BankAccount;
-import edu.eci.arsw.core.TransferService;
 import java.util.concurrent.Executors;
 
+import edu.eci.arsw.core.BankAccount;
+import edu.eci.arsw.core.TransferService;
+
 public final class DeadlockDemo {
-  private DeadlockDemo() {}
+  private DeadlockDemo() {
+  }
+
   public static void run() throws Exception {
     var a = new BankAccount(1, 1000);
     var b = new BankAccount(2, 1000);

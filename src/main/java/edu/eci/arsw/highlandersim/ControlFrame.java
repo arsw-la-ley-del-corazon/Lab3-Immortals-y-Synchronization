@@ -1,12 +1,24 @@
 package edu.eci.arsw.highlandersim;
 
-import edu.eci.arsw.immortals.Immortal;
-import edu.eci.arsw.immortals.ImmortalManager;
-
-import javax.swing.*;
-import java.awt.*;
+import java.awt.BorderLayout;
+import java.awt.FlowLayout;
+import java.awt.Font;
 import java.awt.event.ActionEvent;
 import java.util.List;
+
+import javax.swing.JButton;
+import javax.swing.JComboBox;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JSpinner;
+import javax.swing.JTextArea;
+import javax.swing.SpinnerNumberModel;
+import javax.swing.SwingUtilities;
+
+import edu.eci.arsw.immortals.Immortal;
+import edu.eci.arsw.immortals.ImmortalManager;
 
 public final class ControlFrame extends JFrame {
 
@@ -20,12 +32,12 @@ public final class ControlFrame extends JFrame {
   private final JSpinner countSpinner = new JSpinner(new SpinnerNumberModel(8, 2, 5000, 1));
   private final JSpinner healthSpinner = new JSpinner(new SpinnerNumberModel(100, 10, 10000, 10));
   private final JSpinner damageSpinner = new JSpinner(new SpinnerNumberModel(10, 1, 1000, 1));
-  private final JComboBox<String> fightMode = new JComboBox<>(new String[]{"ordered", "naive"});
+  private final JComboBox<String> fightMode = new JComboBox<>(new String[] { "ordered", "naive" });
 
   public ControlFrame(int count, String fight) {
     setTitle("Highlander Simulator — ARSW");
     setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-    setLayout(new BorderLayout(8,8));
+    setLayout(new BorderLayout(8, 8));
 
     JPanel top = new JPanel(new FlowLayout(FlowLayout.LEFT));
     top.add(new JLabel("Count:"));
@@ -70,11 +82,12 @@ public final class ControlFrame extends JFrame {
     manager = new ImmortalManager(n, fight, health, damage);
     manager.start();
     output.setText("Simulation started with %d immortals (health=%d, damage=%d, fight=%s)%n"
-      .formatted(n, health, damage, fight));
+        .formatted(n, health, damage, fight));
   }
 
   private void onPauseAndCheck(ActionEvent e) {
-    if (manager == null) return;
+    if (manager == null)
+      return;
     manager.pause();
     List<Immortal> pop = manager.populationSnapshot();
     long sum = 0;
@@ -91,11 +104,14 @@ public final class ControlFrame extends JFrame {
   }
 
   private void onResume(ActionEvent e) {
-    if (manager == null) return;
+    if (manager == null)
+      return;
     manager.resume();
   }
 
-  private void onStop(ActionEvent e) { safeStop(); }
+  private void onStop(ActionEvent e) {
+    safeStop();
+  }
 
   private void safeStop() {
     if (manager != null) {
