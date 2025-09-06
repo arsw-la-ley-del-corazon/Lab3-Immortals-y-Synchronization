@@ -6,7 +6,20 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 
+/**
+ * Utility service providing several strategies to transfer money between
+ * {@link BankAccount} instances. Methods demonstrate naive (deadlock-prone),
+ * ordered (deadlock-free) and tryLock-based transfer strategies.
+ */
 public final class TransferService {
+  /**
+   * Naive transfer that locks source then destination without ordering. This can
+   * deadlock under certain interleavings.
+   *
+   * @param from source account
+   * @param to destination account
+   * @param amount amount to transfer
+   */
   public static void transferNaive(BankAccount from, BankAccount to, long amount) {
     Objects.requireNonNull(from);
     Objects.requireNonNull(to);
@@ -26,6 +39,14 @@ public final class TransferService {
     }
   }
 
+  /**
+   * Ordered transfer that locks accounts by their id ordering to prevent
+   * deadlocks.
+   *
+   * @param from source account
+   * @param to destination account
+   * @param amount amount to transfer
+   */
   public static void transferOrdered(BankAccount from, BankAccount to, long amount) {
     Objects.requireNonNull(from);
     Objects.requireNonNull(to);
@@ -44,6 +65,17 @@ public final class TransferService {
     }
   }
 
+  /**
+   * Tries to acquire locks using tryLock with a timeout and retries until the
+   * provided deadline. Throws InterruptedException if the deadline is reached
+   * before acquiring both locks.
+   *
+   * @param from source account
+   * @param to destination account
+   * @param amount amount to transfer
+   * @param maxWait maximum duration to wait for acquiring locks
+   * @throws InterruptedException if the transfer could not acquire locks in time
+   */
   public static void transferTryLock(BankAccount from, BankAccount to, long amount, Duration maxWait)
       throws InterruptedException {
     Objects.requireNonNull(from);
@@ -71,6 +103,10 @@ public final class TransferService {
     throw new InterruptedException("transferTryLock timed out");
   }
 
+  /**
+   * Internal helper that performs the withdraw and deposit assuming locks are
+   * already held.
+   */
   private static void withdrawDeposit(BankAccount from, BankAccount to, long amount) {
     if (from.balance() < amount)
       throw new IllegalArgumentException("Insufficient funds");

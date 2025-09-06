@@ -4,10 +4,19 @@ import edu.eci.arsw.demos.DeadlockDemo;
 import edu.eci.arsw.demos.OrderedTransferDemo;
 import edu.eci.arsw.demos.TryLockTransferDemo;
 
+/**
+ * Entry point for running demos or the immortal UI.
+ */
 public final class Main {
   private Main() {
   }
 
+  /**
+   * Main method. Uses system properties to select the running mode.
+   *
+   * @param args command line arguments (unused)
+   * @throws Exception if demo execution is interrupted
+   */
   public static void main(String[] args) throws Exception {
     String mode = System.getProperty("mode", "ui");
     switch (mode) {

@@ -113,6 +113,58 @@ Reescribe el **buscador de listas negras** para que la búsqueda **se detenga ta
 
 ---
 
+## Respuestas y cambios implementados — Parte III
+
+He realizado cambios en el código para habilitar una pausa cooperativa consistente, permitir snapshots seguros sin bloquear la simulación y mejorar la parada ordenada. A continuación se resumen las modificaciones, cómo validar y el estado de cada requisito del enunciado.
+
+- Archivos modificados:
+  - `src/main/java/edu/eci/arsw/concurrency/PauseController.java`
+    - Añadido conteo de hilos pausados (`pausedThreads`) y método `waitForAllPaused(int expected, long timeoutMillis)` para que la UI espere hasta que los hilos alcancen la pausa cooperativa.
+  - `src/main/java/edu/eci/arsw/immortals/ImmortalManager.java`
+    - `population` ahora es `CopyOnWriteArrayList<Immortal>` para permitir snapshots seguros y remociones sin sincronización global.
+    - `stop()` mejora la parada cooperativa y limpia futuros.
+  - `src/main/java/edu/eci/arsw/highlandersim/ControlFrame.java`
+    - `onPauseAndCheck` espera (hasta 2s) a que todos los hilos lleguen a la pausa antes de tomar el snapshot; si expira el timeout se informa en la UI.
+
+- Cómo validar (pasos rápidos):
+  1. Compilar y ejecutar UI:
+     ```powershell
+     mvn -DskipTests exec:java -Dexec.mainClass=edu.eci.arsw.highlandersim.ControlFrame -Dcount=8 -Dfight=ordered -Dhealth=100 -Ddamage=10
+     ```
+  2. Click `Start`.
+  3. Click `Pause & Check` — la UI esperará hasta 2s a que los hilos lleguen al punto de pausa cooperativa; luego muestra la salud por inmortal, la suma total y el contador de fights.
+  4. Click `Resume` para reanudar, `Stop` para detener ordenadamente.
+
+- Invariante (comentario importante):
+  - Enunciado esperado: "la suma total de salud debe permanecer constante". Sin embargo, en el código actual la operación de pelea está implementada como:
+    ```java
+    other.health -= damage;
+    this.health += damage / 2;
+    ```
+    por lo que cada pelea provoca un cambio neto en la suma total igual a `-damage/2` (la suma total decrece). Por tanto, con la implementación actual la suma NO se mantiene constante.
+  - Si deseas que la suma sea invariante debes cambiar la regla de pelea a una transferencia cero-suma — por ejemplo:
+    ```java
+    other.health -= damage;
+    this.health += damage; // transferencia total
+    ```
+    o cualquier regla donde lo restado al oponente sea exactamente lo sumado al atacante.
+  - Con la implementación original del enunciado (si asumimos transferencia total) el valor esperado es `Total = N * H` (donde N = número de inmortales, H = salud inicial). En el estado actual, la suma esperada decrece con cada pelea en `damage/2`.
+
+- Resumen del estado de requisitos (Parte III):
+  - Pausa correcta (esperar antes de leer): Done — `PauseController.waitForAllPaused(...)` y espera en `ControlFrame`.
+  - Resume: Preservado (ya existía) — Done.
+  - Regiones críticas / deadlocks: El código mantiene `fightNaive` (potencial deadlock) y `fightOrdered` (evita deadlocks por orden total). No se cambiaron las estrategias de pelea — Done (existing).
+  - Diagnóstico de deadlocks: Mantener `jps`/`jstack` como herramienta — Deferred (herramienta externa).
+  - Remover inmortales muertos: Mejora parcial — `CopyOnWriteArrayList` permite remover sin CME y sin sincronización global; se puede agregar una tarea periódica de limpieza si se desea — Partial.
+  - STOP (apagado ordenado): Mejorado — `stop()` solicita parada y apaga el executor; se puede añadir `awaitTermination` para esperar completitud — Partial/Done.
+
+- Notas y recomendaciones adicionales:
+  - Para validar invariante con `Pause & Check` en modo experimental, usa `-Dfight=ordered` para evitar deadlocks. Si la suma no se mantiene, revisa la regla de pelea (ver nota anterior sobre transferencia neta).
+  - Para remover inmortales muertos de forma no bloqueante en simulaciones grandes recomiendo implementar una tarea que periódicamente recorra la `CopyOnWriteArrayList` y elimine los que `!isAlive()` (la operación de eliminación en `CopyOnWriteArrayList` es segura aunque costosa).
+  - Si quieres que implemente: validación automática del invariante en la UI (PASS/FAIL), limpieza periódica de muertos o la estrategia `tryLock(timeout)` como alternativa anti-deadlock, dime cuál prefieres y lo implemento.
+
+---
+
 ## Entregables
 
 1. **Código fuente** (Java 21) con la UI funcionando.  
