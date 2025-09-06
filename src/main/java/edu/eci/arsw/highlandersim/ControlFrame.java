@@ -124,6 +124,13 @@ public final class ControlFrame extends JFrame {
     }
     sb.append("--------------------------------\n");
     sb.append("Total Health: ").append(sum).append('\n');
+    long expected = (long) manager.initialCount() * manager.initialHealth();
+    if (sum == expected) {
+      sb.append("Invariant: PASS (sum == ").append(expected).append(")\n");
+    } else {
+      sb.append("Invariant: FAIL (expected ").append(expected).append(")\n");
+      sb.append("Note: current fight rule in code subtracts damage from opponent and adds damage/2 to attacker; this is not zero-sum so total may change.\n");
+    }
     sb.append("Score (fights): ").append(manager.scoreBoard().totalFights()).append('\n');
     output.setText(sb.toString());
   }

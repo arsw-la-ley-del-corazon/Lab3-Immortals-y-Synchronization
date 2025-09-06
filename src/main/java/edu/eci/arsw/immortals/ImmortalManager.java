@@ -7,6 +7,9 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 import edu.eci.arsw.concurrency.PauseController;
 
@@ -23,6 +26,7 @@ public final class ImmortalManager implements AutoCloseable {
   private final PauseController controller = new PauseController();
   private final ScoreBoard scoreBoard = new ScoreBoard();
   private ExecutorService exec;
+  private ScheduledExecutorService cleaner;
 
   private final String fightMode;
   private final int initialHealth;
@@ -56,6 +60,16 @@ public final class ImmortalManager implements AutoCloseable {
     }
   }
 
+  /** Returns the configured initial health for each immortal. */
+  public int initialHealth() {
+    return initialHealth;
+  }
+
+  /** Returns the current configured initial population size at construction. */
+  public int initialCount() {
+    return population.size();
+  }
+
   /**
    * Starts the simulation by submitting each immortal to a virtual-thread
    * executor. If a previous executor exists it will be stopped first.
@@ -64,8 +78,20 @@ public final class ImmortalManager implements AutoCloseable {
     if (exec != null)
       stop();
     exec = Executors.newVirtualThreadPerTaskExecutor();
+    futures.clear();
     for (Immortal im : population) {
       futures.add(exec.submit(im));
+    }
+    // Start a light-weight scheduled cleaner to remove dead immortals periodically.
+    if (cleaner == null || cleaner.isShutdown()) {
+      cleaner = new ScheduledThreadPoolExecutor(1);
+      cleaner.scheduleAtFixedRate(() -> {
+        try {
+          population.removeIf(im -> !im.isAlive());
+        } catch (Throwable t) {
+          // ignore and continue
+        }
+      }, 500, 500, TimeUnit.MILLISECONDS);
     }
   }
 
@@ -92,9 +118,23 @@ public final class ImmortalManager implements AutoCloseable {
       im.stop();
     if (exec != null) {
       exec.shutdownNow();
+      try {
+        exec.awaitTermination(2, TimeUnit.SECONDS);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      }
       exec = null;
     }
     futures.clear();
+    if (cleaner != null) {
+      cleaner.shutdownNow();
+      try {
+        cleaner.awaitTermination(1, TimeUnit.SECONDS);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      }
+      cleaner = null;
+    }
   }
 
   /**
