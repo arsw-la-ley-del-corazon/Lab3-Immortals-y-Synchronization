@@ -20,6 +20,10 @@ import javax.swing.SwingUtilities;
 import edu.eci.arsw.immortals.Immortal;
 import edu.eci.arsw.immortals.ImmortalManager;
 
+/**
+ * Simple Swing control frame to start, pause and inspect a Highlander
+ * simulation managed by {@link ImmortalManager}.
+ */
 public final class ControlFrame extends JFrame {
 
   private ImmortalManager manager;
@@ -34,8 +38,14 @@ public final class ControlFrame extends JFrame {
   private final JSpinner damageSpinner = new JSpinner(new SpinnerNumberModel(10, 1, 1000, 1));
   private final JComboBox<String> fightMode = new JComboBox<>(new String[] { "ordered", "naive" });
 
+  /**
+   * Creates the control frame with initial parameters.
+   *
+   * @param count initial immortal count
+   * @param fight initial fight mode
+   */
   public ControlFrame(int count, String fight) {
-    setTitle("Highlander Simulator — ARSW");
+    setTitle("Highlander Simulator \u2014 ARSW");
     setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
     setLayout(new BorderLayout(8, 8));
 
@@ -85,6 +95,10 @@ public final class ControlFrame extends JFrame {
         .formatted(n, health, damage, fight));
   }
 
+  /**
+   * Pauses the simulation and prints a snapshot of each immortal's health and
+   * aggregated statistics to the UI.
+   */
   private void onPauseAndCheck(ActionEvent e) {
     if (manager == null)
       return;
@@ -120,6 +134,11 @@ public final class ControlFrame extends JFrame {
     }
   }
 
+  /**
+   * Convenience main to launch the UI.
+   *
+   * @param args unused
+   */
   public static void main(String[] args) {
     int count = Integer.getInteger("count", 8);
     String fight = System.getProperty("fight", "ordered");
