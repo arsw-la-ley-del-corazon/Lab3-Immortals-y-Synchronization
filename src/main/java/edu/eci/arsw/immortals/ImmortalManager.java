@@ -3,6 +3,7 @@ package edu.eci.arsw.immortals;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -15,7 +16,9 @@ import edu.eci.arsw.concurrency.PauseController;
  * snapshots and aggregated information such as total health.
  */
 public final class ImmortalManager implements AutoCloseable {
-  private final List<Immortal> population = new ArrayList<>();
+  // Use CopyOnWriteArrayList to allow safe iteration during snapshots and
+  // infrequent structural modifications (removing dead immortals).
+  private final CopyOnWriteArrayList<Immortal> population = new CopyOnWriteArrayList<>();
   private final List<Future<?>> futures = new ArrayList<>();
   private final PauseController controller = new PauseController();
   private final ScoreBoard scoreBoard = new ScoreBoard();
@@ -49,7 +52,7 @@ public final class ImmortalManager implements AutoCloseable {
     this.initialHealth = initialHealth;
     this.damage = damage;
     for (int i = 0; i < n; i++) {
-      population.add(new Immortal("Immortal-" + i, initialHealth, damage, population, scoreBoard, controller));
+  population.add(new Immortal("Immortal-" + i, initialHealth, damage, population, scoreBoard, controller));
     }
   }
 
@@ -87,8 +90,11 @@ public final class ImmortalManager implements AutoCloseable {
   public void stop() {
     for (Immortal im : population)
       im.stop();
-    if (exec != null)
+    if (exec != null) {
       exec.shutdownNow();
+      exec = null;
+    }
+    futures.clear();
   }
 
   /**

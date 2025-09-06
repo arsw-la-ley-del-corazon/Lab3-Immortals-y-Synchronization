@@ -104,6 +104,17 @@ public final class ControlFrame extends JFrame {
       return;
     manager.pause();
     List<Immortal> pop = manager.populationSnapshot();
+    // Wait for all immortal threads to reach the paused state (cooperative pause).
+    try {
+      int expected = pop.size();
+      boolean allPaused = manager.controller().waitForAllPaused(expected, 2000);
+      if (!allPaused) {
+        output.setText("Warning: not all threads reached paused state within timeout. Snapshot may be inconsistent.\n\n");
+      }
+    } catch (InterruptedException ex) {
+      Thread.currentThread().interrupt();
+      output.setText("Interrupted while waiting for pause.\n\n");
+    }
     long sum = 0;
     StringBuilder sb = new StringBuilder();
     for (Immortal im : pop) {

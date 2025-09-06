@@ -1,5 +1,6 @@
 package edu.eci.arsw.concurrency;
 
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -11,7 +12,11 @@ import java.util.concurrent.locks.ReentrantLock;
 public final class PauseController {
   private final ReentrantLock lock = new ReentrantLock();
   private final Condition unpaused = lock.newCondition();
+  // Condition to signal changes in the number of currently paused threads.
+  private final Condition pausedCountChanged = lock.newCondition();
   private volatile boolean paused = false;
+  // number of threads currently blocked in awaitIfPaused()
+  private int pausedThreads = 0;
 
   /**
    * Puts the controller into paused state. Threads calling
@@ -56,8 +61,47 @@ public final class PauseController {
   public void awaitIfPaused() throws InterruptedException {
     lock.lockInterruptibly();
     try {
-      while (paused)
-        unpaused.await();
+      while (paused) {
+        // register as paused and notify any waiter interested on paused count
+        pausedThreads++;
+        try {
+          pausedCountChanged.signalAll();
+          unpaused.await();
+        } finally {
+          // on resume (or interruption) unregister and notify
+          pausedThreads--;
+          pausedCountChanged.signalAll();
+        }
+      }
+    } finally {
+      lock.unlock();
+    }
+  }
+
+  /**
+   * Waits until at least {@code expected} threads are paused or the timeout
+   * elapses. Returns true if the expected number was reached, false if timed out.
+   */
+  public boolean waitForAllPaused(int expected, long timeoutMillis) throws InterruptedException {
+    long nanos = TimeUnit.MILLISECONDS.toNanos(timeoutMillis);
+    lock.lockInterruptibly();
+    try {
+      while (pausedThreads < expected) {
+        if (nanos <= 0)
+          return false;
+        nanos = pausedCountChanged.awaitNanos(nanos);
+      }
+      return true;
+    } finally {
+      lock.unlock();
+    }
+  }
+
+  /** Returns the current number of threads known to be paused. */
+  public int pausedCount() {
+    lock.lock();
+    try {
+      return pausedThreads;
     } finally {
       lock.unlock();
     }
