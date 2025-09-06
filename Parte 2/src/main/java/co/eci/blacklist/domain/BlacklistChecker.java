@@ -30,8 +30,10 @@ public class BlacklistChecker {
         final long start = System.currentTimeMillis();
         final int totalServers = facade.getRegisteredServersCount();
         final int threads = Math.max(1, Math.min(nThreads, totalServers));
-        final int threshold = Math.max(1, policies.getAlarmCount());
 
+        // BLACK_LIST_ALARM_COUNT Viene de policies.
+        final int threshold = Math.max(1, policies.getAlarmCount());
+        // Thread Safe
         final AtomicInteger found = new AtomicInteger(0);
         final AtomicInteger checked = new AtomicInteger(0);  
         final AtomicBoolean stop = new AtomicBoolean(false); 
@@ -55,9 +57,9 @@ public class BlacklistChecker {
                     if (hit) {
                         int c = found.incrementAndGet();
                         matches.add(i);
-                        if (c > threshold) {
-                            stop.set(true);
-                            break;
+                        if (c >= threshold) {  // Parada temprana
+                            stop.set(true); // Señal de parada
+                            break;  // Se detiene el hilo
                         }
                     }
                 }
