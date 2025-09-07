@@ -1,40 +1,31 @@
 package edu.eci.arsw.pc;
 
-import java.util.ArrayDeque;
-import java.util.Deque;
+import java.util.LinkedList;
+import java.util.Queue;
 
-/** Intencionalmente incorrecta: usa busy-wait (alto CPU). */
-public final class BusySpinQueue<T> {
-  private final Deque<T> q = new ArrayDeque<>();
-  private final int capacity;
+public class BusySpinQueue<T> {
+    private final Queue<T> queue;
+    private final int capacity;
 
-  public BusySpinQueue(int capacity) {
-    this.capacity = capacity;
-  }
-
-  public void put(T item) {
-    // spin hasta que haya espacio
-    while (true) {
-      if (q.size() < capacity) {
-        q.addLast(item);
-        return;
-      }
-      // espera activa
-      Thread.onSpinWait();
+    public BusySpinQueue(int capacity) {
+        this.queue = new LinkedList<>();
+        this.capacity = capacity;
     }
-  }
 
-  public T take() {
-    // spin hasta que haya elementos
-    while (true) {
-      T v = q.pollFirst();
-      if (v != null)
-        return v;
-      Thread.onSpinWait();
+    public synchronized void put(T item) throws InterruptedException {
+        while (queue.size() == capacity) {
+            wait(); //// mientras el buffer está lleno
+        }
+        queue.add(item);
+        notifyAll(); // notifica consumidores
     }
-  }
 
-  public int size() {
-    return q.size();
-  }
+    public synchronized T take() throws InterruptedException {
+        while (queue.isEmpty()) {
+            wait(); // mientras el buffer está vacío
+        }
+        T item = queue.poll();
+        notifyAll(); // notifica productores
+        return item;
+    }
 }

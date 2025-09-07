@@ -4,8 +4,19 @@ import edu.eci.arsw.demos.DeadlockDemo;
 import edu.eci.arsw.demos.OrderedTransferDemo;
 import edu.eci.arsw.demos.TryLockTransferDemo;
 
+/**
+ * Entry point for running demos or the immortal UI.
+ */
 public final class Main {
-  private Main() {}
+  private Main() {
+  }
+
+  /**
+   * Main method. Uses system properties to select the running mode.
+   *
+   * @param args command line arguments (unused)
+   * @throws Exception if demo execution is interrupted
+   */
   public static void main(String[] args) throws Exception {
     String mode = System.getProperty("mode", "ui");
     switch (mode) {
@@ -22,8 +33,7 @@ public final class Main {
         int n = Integer.getInteger("count", 8);
         String fight = System.getProperty("fight", "ordered");
         javax.swing.SwingUtilities.invokeLater(
-          () -> new edu.eci.arsw.highlandersim.ControlFrame(n, fight)
-        );
+            () -> new edu.eci.arsw.highlandersim.ControlFrame(n, fight));
       }
       default -> System.out.println("Use -Dmode=immortals|demos|ui");
     }

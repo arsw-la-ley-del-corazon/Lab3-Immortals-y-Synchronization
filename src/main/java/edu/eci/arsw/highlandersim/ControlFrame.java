@@ -1,13 +1,29 @@
 package edu.eci.arsw.highlandersim;
 
-import edu.eci.arsw.immortals.Immortal;
-import edu.eci.arsw.immortals.ImmortalManager;
-
-import javax.swing.*;
-import java.awt.*;
+import java.awt.BorderLayout;
+import java.awt.FlowLayout;
+import java.awt.Font;
 import java.awt.event.ActionEvent;
 import java.util.List;
 
+import javax.swing.JButton;
+import javax.swing.JComboBox;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JSpinner;
+import javax.swing.JTextArea;
+import javax.swing.SpinnerNumberModel;
+import javax.swing.SwingUtilities;
+
+import edu.eci.arsw.immortals.Immortal;
+import edu.eci.arsw.immortals.ImmortalManager;
+
+/**
+ * Simple Swing control frame to start, pause and inspect a Highlander
+ * simulation managed by {@link ImmortalManager}.
+ */
 public final class ControlFrame extends JFrame {
 
   private ImmortalManager manager;
@@ -20,12 +36,18 @@ public final class ControlFrame extends JFrame {
   private final JSpinner countSpinner = new JSpinner(new SpinnerNumberModel(8, 2, 5000, 1));
   private final JSpinner healthSpinner = new JSpinner(new SpinnerNumberModel(100, 10, 10000, 10));
   private final JSpinner damageSpinner = new JSpinner(new SpinnerNumberModel(10, 1, 1000, 1));
-  private final JComboBox<String> fightMode = new JComboBox<>(new String[]{"ordered", "naive"});
+  private final JComboBox<String> fightMode = new JComboBox<>(new String[] { "ordered", "naive" });
 
+  /**
+   * Creates the control frame with initial parameters.
+   *
+   * @param count initial immortal count
+   * @param fight initial fight mode
+   */
   public ControlFrame(int count, String fight) {
-    setTitle("Highlander Simulator — ARSW");
+    setTitle("Highlander Simulator \u2014 ARSW");
     setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-    setLayout(new BorderLayout(8,8));
+    setLayout(new BorderLayout(8, 8));
 
     JPanel top = new JPanel(new FlowLayout(FlowLayout.LEFT));
     top.add(new JLabel("Count:"));
@@ -70,13 +92,29 @@ public final class ControlFrame extends JFrame {
     manager = new ImmortalManager(n, fight, health, damage);
     manager.start();
     output.setText("Simulation started with %d immortals (health=%d, damage=%d, fight=%s)%n"
-      .formatted(n, health, damage, fight));
+        .formatted(n, health, damage, fight));
   }
 
+  /**
+   * Pauses the simulation and prints a snapshot of each immortal's health and
+   * aggregated statistics to the UI.
+   */
   private void onPauseAndCheck(ActionEvent e) {
-    if (manager == null) return;
+    if (manager == null)
+      return;
     manager.pause();
     List<Immortal> pop = manager.populationSnapshot();
+    // Wait for all immortal threads to reach the paused state (cooperative pause).
+    try {
+      int expected = pop.size();
+      boolean allPaused = manager.controller().waitForAllPaused(expected, 2000);
+      if (!allPaused) {
+        output.setText("Warning: not all threads reached paused state within timeout. Snapshot may be inconsistent.\n\n");
+      }
+    } catch (InterruptedException ex) {
+      Thread.currentThread().interrupt();
+      output.setText("Interrupted while waiting for pause.\n\n");
+    }
     long sum = 0;
     StringBuilder sb = new StringBuilder();
     for (Immortal im : pop) {
@@ -86,16 +124,26 @@ public final class ControlFrame extends JFrame {
     }
     sb.append("--------------------------------\n");
     sb.append("Total Health: ").append(sum).append('\n');
+    long expected = (long) manager.initialCount() * manager.initialHealth();
+    if (sum == expected) {
+      sb.append("Invariant: PASS (sum == ").append(expected).append(")\n");
+    } else {
+      sb.append("Invariant: FAIL (expected ").append(expected).append(")\n");
+      sb.append("Note: current fight rule in code subtracts damage from opponent and adds damage/2 to attacker; this is not zero-sum so total may change.\n");
+    }
     sb.append("Score (fights): ").append(manager.scoreBoard().totalFights()).append('\n');
     output.setText(sb.toString());
   }
 
   private void onResume(ActionEvent e) {
-    if (manager == null) return;
+    if (manager == null)
+      return;
     manager.resume();
   }
 
-  private void onStop(ActionEvent e) { safeStop(); }
+  private void onStop(ActionEvent e) {
+    safeStop();
+  }
 
   private void safeStop() {
     if (manager != null) {
@@ -104,6 +152,11 @@ public final class ControlFrame extends JFrame {
     }
   }
 
+  /**
+   * Convenience main to launch the UI.
+   *
+   * @param args unused
+   */
   public static void main(String[] args) {
     int count = Integer.getInteger("count", 8);
     String fight = System.getProperty("fight", "ordered");
